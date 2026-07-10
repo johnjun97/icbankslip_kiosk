@@ -14,6 +14,7 @@ function App() {
 
   const [qrCode, setQrCode] = useState(null)
   const [agree, setAgree] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const [files, setFiles] = useState({
     icFront: null,
@@ -55,196 +56,209 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    const icFrontPath = await uploadFile(
-      files.icFront?.file,
-      "ic-front"
-    )
+    setLoading(true)
 
-    const icBackPath = await uploadFile(
-      files.icBack?.file,
-      "ic-back"
-    )
+    try {
+      const icFrontPath = await uploadFile(
+        files.icFront?.file,
+        "ic-front"
+      )
 
-    const bankSlipPath = await uploadFile(
-      files.bankSlip?.file,
-      "bank-slip"
-    )
+      const icBackPath = await uploadFile(
+        files.icBack?.file,
+        "ic-back"
+      )
 
-    const qrValue = `NIR-${Date.now()}`
+      const bankSlipPath = await uploadFile(
+        files.bankSlip?.file,
+        "bank-slip"
+      )
 
-    const { data: testData, error: testError } = await supabase
-      .from('submissions')
-      .select('*')
-      .limit(1)
+      const qrValue = `NIR-${Date.now()}`
 
-    console.log("select test:", testData, testError)
+      const { data, error } = await supabase
+        .from('submissions')
+        .insert({
+          ic_front_path: icFrontPath,
+          ic_back_path: icBackPath,
+          bank_slip_path: bankSlipPath,
+          status: 'Pending',
+          qrcode: qrValue
+        })
+        .single()
 
-    const { data, error } = await supabase
-      .from('submissions')
-      .insert({
-        status: 'Pending',
-        qrcode: qrValue
-      })
-      .single()
-
-    if (error) {
-      console.error(error)
-    } else {
-      console.log('Saved:', data)
+      if (error) {
+        throw error
+      }
 
       setQrCode(qrValue)
-    }
 
+    } catch (error) {
+      console.error(error)
+
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-
-
-    <div className="app">
-      <div className="form-container">
-        <img src={logo} alt="Logo" />
-
-        <p>Fill in the above information.</p>
-
-        <form onSubmit={handleSubmit}>
-          <div>
-            <label>IC Front Image:</label>
-
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => handleFileChange(e, "icFront")}
-            />
+    <>
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-box">
+            Uploading documents...
           </div>
+        </div>
+      )}
 
-          <div>
-            <label>IC Back Image:</label>
+      <div className="app">
 
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => handleFileChange(e, "icBack")}
-            />
-          </div>
 
-          <div>
-            <label>Bank Slip:</label>
+        <div className="form-container">
+          <img src={logo} alt="Logo" />
 
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => handleFileChange(e, "bankSlip")}
-            />
-          </div>
-          <div className="preview-box">
+          <p>Fill in the above information.</p>
 
-            <h3>
-              {files.icFront || files.icBack || files.bankSlip
-                ? "Uploaded Documents"
-                : "No document uploaded yet"}
-            </h3>
+          <form onSubmit={handleSubmit}>
+            <div>
+              <label>IC Front Image:</label>
 
-            <div className="ic-preview-row">
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => handleFileChange(e, "icFront")}
+              />
+            </div>
 
-              {files.icFront && (
+            <div>
+              <label>IC Back Image:</label>
+
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => handleFileChange(e, "icBack")}
+              />
+            </div>
+
+            <div>
+              <label>Bank Slip:</label>
+
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => handleFileChange(e, "bankSlip")}
+              />
+            </div>
+            <div className="preview-box">
+
+              <h3>
+                {files.icFront || files.icBack || files.bankSlip
+                  ? "Uploaded Documents"
+                  : "No document uploaded yet"}
+              </h3>
+
+              <div className="ic-preview-row">
+
+                {files.icFront && (
+                  <div className="file-card">
+                    <img src={files.icFront.preview} alt="IC Front" />
+
+                    <div>
+                      <p>IC Front</p>
+                      <small>{files.icFront.file.name}</small>
+                    </div>
+                  </div>
+                )}
+
+                {files.icBack && (
+                  <div className="file-card">
+                    <img src={files.icBack.preview} alt="IC Back" />
+
+                    <div>
+                      <p>IC Back</p>
+                      <small>{files.icBack.file.name}</small>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {files.bankSlip && (
                 <div className="file-card">
-                  <img src={files.icFront.preview} alt="IC Front" />
+
+                  {files.bankSlip.file.type === "application/pdf" ? (
+                    <div className="pdf-thumbnail">
+                      <Document file={files.bankSlip.preview}>
+                        <Page
+                          pageNumber={1}
+                          width={70}
+                        />
+                      </Document>
+                    </div>
+                  ) : (
+                    <img src={files.bankSlip.preview} alt="Bank Slip" />
+                  )}
+
 
                   <div>
-                    <p>IC Front</p>
-                    <small>{files.icFront.file.name}</small>
+                    <p>Bank Slip</p>
+                    <small>{files.bankSlip.file.name}</small>
                   </div>
-                </div>
-              )}
 
-              {files.icBack && (
-                <div className="file-card">
-                  <img src={files.icBack.preview} alt="IC Back" />
-
-                  <div>
-                    <p>IC Back</p>
-                    <small>{files.icBack.file.name}</small>
-                  </div>
                 </div>
               )}
 
             </div>
 
-            {files.bankSlip && (
-              <div className="file-card">
+            <div>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={agree}
+                  onChange={(e) => setAgree(e.target.checked)}
+                />
 
-                {files.bankSlip.file.type === "application/pdf" ? (
-                  <div className="pdf-thumbnail">
-                    <Document file={files.bankSlip.preview}>
-                      <Page
-                        pageNumber={1}
-                        width={70}
-                      />
-                    </Document>
-                  </div>
-                ) : (
-                  <img src={files.bankSlip.preview} alt="Bank Slip" />
-                )}
+                By Clicking on Submit, You agree to Nirvana's{" "}
+                <a href="/terms-and-conditions.pdf" target="_blank">
+                  Terms and Conditions of Use
+                </a>
+              </label>
 
+              <br />
 
-                <div>
-                  <p>Bank Slip</p>
-                  <small>{files.bankSlip.file.name}</small>
-                </div>
+              <span>
+                To learn more about how Nirvana collects, uses, shares, and protects your personal data,
+                please see Nirvana's{" "}
+                <a href="/privacy-policy.pdf" target="_blank">
+                  Privacy Policy
+                </a>
+              </span>
+            </div>
 
-              </div>
-            )}
+            <button
+              type="submit"
+              disabled={!agree || loading}
+            >
+              {loading ? "Uploading..." : "Submit"}
+            </button>
+          </form>
+          {qrCode && (
+            <div className="qr-box">
+              <h3>Upload Successful</h3>
 
-          </div>
+              <p>Please scan this QR code at the kiosk.</p>
 
-          <div>
-            <label>
-              <input
-                type="checkbox"
-                checked={agree}
-                onChange={(e) => setAgree(e.target.checked)}
+              <QRCodeCanvas
+                value={qrCode}
+                size={200}
               />
 
-              By Clicking on Submit, You agree to Nirvana's{" "}
-              <a href="/terms-and-conditions.pdf" target="_blank">
-                Terms and Conditions of Use
-              </a>
-            </label>
-
-            <br />
-
-            <span>
-              To learn more about how Nirvana collects, uses, shares, and protects your personal data,
-              please see Nirvana's{" "}
-              <a href="/privacy-policy.pdf" target="_blank">
-                Privacy Policy
-              </a>
-            </span>
-          </div>
-
-          <button
-            type="submit"
-            disabled={!agree}
-          >
-            Submit
-          </button>
-        </form>
-        {qrCode && (
-          <div className="qr-box">
-            <h3>Upload Successful</h3>
-
-            <p>Please scan this QR code at the kiosk.</p>
-
-            <QRCodeCanvas
-              value={qrCode}
-              size={200}
-            />
-
-            <p>{qrCode}</p>
-          </div>
-        )}
+              <p>{qrCode}</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
