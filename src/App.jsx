@@ -41,9 +41,13 @@ function App() {
 
     const fileName = `${Date.now()}-${file.name}`
 
+    console.log("Uploading:", `${folder}/${fileName}`)
+
     const { data, error } = await supabase.storage
       .from('uploads')
       .upload(`${folder}/${fileName}`, file)
+
+    console.log("Upload response:", data, error)
 
     if (error) {
       console.error('Upload error:', error)
