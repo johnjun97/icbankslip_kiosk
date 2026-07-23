@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import './Monitor.css'
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+    CartesianGrid,
+    Legend
+} from 'recharts'
 
 function Monitor() {
 
@@ -11,6 +21,9 @@ function Monitor() {
     const [printSources, setPrintSources] = useState([])
     const [printSource, setPrintSource] = useState("all")
 
+    const [chartData, setChartData] = useState([])
+
+
     const [total, setTotal] = useState(null)
     const [printed, setPrinted] = useState(null)
     const [pending, setPending] = useState(null)
@@ -19,6 +32,8 @@ function Monitor() {
     const [loadingData, setLoadingData] = useState(true)
     const [loadingTotal, setLoadingTotal] = useState(true)
     const [loadingPrinted, setLoadingPrinted] = useState(true)
+
+
 
     const loadPrintSources = async () => {
 
@@ -131,7 +146,7 @@ function Monitor() {
             start.setHours(0, 0, 0, 0)
 
             query = query.gte(
-'printed_date',
+                'printed_date',
                 start.toISOString()
             )
 
@@ -145,7 +160,7 @@ function Monitor() {
             start.setDate(now.getDate() - 7)
 
             query = query.gte(
-'printed_date',
+                'printed_date',
                 start.toISOString()
             )
 
@@ -159,7 +174,7 @@ function Monitor() {
             start.setDate(now.getDate() - 30)
 
             query = query.gte(
-'printed_date',
+                'printed_date',
                 start.toISOString()
             )
 
@@ -175,7 +190,7 @@ function Monitor() {
             )
 
             query = query.gte(
-'printed_date',
+                'printed_date',
                 start.toISOString()
             )
 
@@ -198,11 +213,11 @@ function Monitor() {
 
             query = query
                 .gte(
-'printed_date',
+                    'printed_date',
                     start.toISOString()
                 )
                 .lt(
-'printed_date',
+                    'printed_date',
                     end.toISOString()
                 )
 
@@ -221,6 +236,89 @@ function Monitor() {
         setPrinted(count || 0)
         setLoadingPrinted(false)
     }
+
+    const loadChartData = async () => {
+
+        let query = supabase
+            .from('submissions')
+            .select('created_at, printed_date, status, printed_from')
+
+
+        if (printSource !== "all") {
+            query = query.eq(
+                'printed_from',
+                printSource
+            )
+        }
+
+
+        const { data, error } = await query
+
+
+        if (error) {
+            console.error(error)
+            return
+        }
+
+
+        const grouped = {}
+
+
+        data.forEach(item => {
+
+            const uploadDate = new Date(
+                item.created_at
+            ).toLocaleDateString()
+
+
+            if (!grouped[uploadDate]) {
+                grouped[uploadDate] = {
+                    date: uploadDate,
+                    uploads: 0,
+                    printed: 0
+                }
+            }
+
+
+            grouped[uploadDate].uploads++
+
+
+            if (item.status === "Printed" && item.printed_date) {
+
+                const printedDate = new Date(
+                    item.printed_date
+                ).toLocaleDateString()
+
+
+                if (!grouped[printedDate]) {
+                    grouped[printedDate] = {
+                        date: printedDate,
+                        uploads: 0,
+                        printed: 0
+                    }
+                }
+
+
+                grouped[printedDate].printed++
+
+            }
+
+        })
+
+
+        setChartData(
+            Object.values(grouped)
+        )
+
+    }
+
+    useEffect(() => {
+
+        if (user) {
+            loadChartData()
+        }
+
+    }, [range, printSource, user])
 
     const loadTotalUploads = async () => {
 
@@ -591,6 +689,55 @@ function Monitor() {
                 </div>
 
             </div>
+
+            <div className="monitor-card chart-card">
+
+                <h2>
+                    Upload vs Printed
+                </h2>
+
+
+                <ResponsiveContainer
+                    width="100%"
+                    height={300}
+                >
+
+                    <LineChart
+                        data={chartData}
+                    >
+
+                        <CartesianGrid />
+
+                        <XAxis
+                            dataKey="date"
+                        />
+
+                        <YAxis />
+
+                        <Tooltip />
+
+                        <Legend />
+
+
+                        <Line
+                            type="monotone"
+                            dataKey="uploads"
+                            name="Total Uploads"
+                        />
+
+
+                        <Line
+                            type="monotone"
+                            dataKey="printed"
+                            name="Total Printed"
+                        />
+
+                    </LineChart>
+
+                </ResponsiveContainer>
+
+            </div>
+
         </div>
 
     )
