@@ -98,10 +98,6 @@
     margin-bottom: 15px;
 }
 
-.second-row {
-    grid-template-columns: repeat(2, 1fr);
-}
-
 .chart-card {
     margin-top: 30px;
     box-sizing: border-box;

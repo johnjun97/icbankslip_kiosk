@@ -25,6 +25,8 @@ function Monitor() {
 
 
     const [total, setTotal] = useState(null)
+    const [totalUploadFiles, setTotalUploadFiles] = useState(null)
+    const [loadingUploadFiles, setLoadingUploadFiles] = useState(true)
     const [printed, setPrinted] = useState(null)
     const [pending, setPending] = useState(null)
     const [expired, setExpired] = useState(null)
@@ -95,9 +97,12 @@ function Monitor() {
     }, [])
 
     useEffect(() => {
+
         if (user) {
             loadTotalUploads()
+            loadTotalUploadFiles()
         }
+
     }, [range, user])
 
 
@@ -275,12 +280,25 @@ function Monitor() {
                 grouped[uploadDate] = {
                     date: uploadDate,
                     uploads: 0,
+                    uploadFiles: 0,
                     printed: 0
                 }
             }
 
 
             grouped[uploadDate].uploads++
+
+            if (item.ic_front_path) {
+                grouped[uploadDate].uploadFiles++
+            }
+
+            if (item.ic_back_path) {
+                grouped[uploadDate].uploadFiles++
+            }
+
+            if (item.bank_slip_path) {
+                grouped[uploadDate].uploadFiles++
+            }
 
 
             if (item.status === "Printed" && item.printed_date) {
@@ -432,6 +450,52 @@ function Monitor() {
         setTotal(count || 0)
 
         setLoadingTotal(false)
+
+    }
+
+    const loadTotalUploadFiles = async () => {
+
+        setLoadingUploadFiles(true)
+
+        const { data, error } = await supabase
+            .from('submissions')
+            .select(`
+            ic_front_path,
+            ic_back_path,
+            bank_slip_path
+        `)
+
+
+        if (error) {
+            console.error(error)
+            setLoadingUploadFiles(false)
+            return
+        }
+
+
+        let totalFiles = 0
+
+
+        data.forEach(item => {
+
+            if (item.ic_front_path) {
+                totalFiles++
+            }
+
+            if (item.ic_back_path) {
+                totalFiles++
+            }
+
+            if (item.bank_slip_path) {
+                totalFiles++
+            }
+
+        })
+
+
+        setTotalUploadFiles(totalFiles)
+
+        setLoadingUploadFiles(false)
 
     }
 
@@ -646,7 +710,17 @@ function Monitor() {
 
                 </div>
 
+                <div className="monitor-card">
 
+                    <h2>
+                        Total Upload Files
+                    </h2>
+
+                    <p>
+                        {loadingUploadFiles ? "Loading..." : totalUploadFiles}
+                    </p>
+
+                </div>
                 <div className="monitor-card printed-card">
 
                     <div className="card-title-row">
@@ -723,6 +797,12 @@ function Monitor() {
                             type="monotone"
                             dataKey="uploads"
                             name="Total Uploads"
+                        />
+
+                        <Line
+                            type="monotone"
+                            dataKey="uploadFiles"
+                            name="Total Upload Files"
                         />
 
 
