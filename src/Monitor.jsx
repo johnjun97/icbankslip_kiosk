@@ -157,6 +157,26 @@ function Monitor() {
 
         }
 
+        if (range === "yesterday") {
+
+            const start = new Date()
+            start.setDate(start.getDate() - 1)
+            start.setHours(0, 0, 0, 0)
+
+            const end = new Date(start)
+            end.setDate(end.getDate() + 1)
+
+            query = query
+                .gte(
+                    'printed_date',
+                    start.toISOString()
+                )
+                .lt(
+                    'printed_date',
+                    end.toISOString()
+                )
+
+        }
 
         if (range === "7days") {
 
@@ -244,9 +264,17 @@ function Monitor() {
 
     const loadChartData = async () => {
 
-        let query = supabase
-            .from('submissions')
-            .select('created_at, printed_date, status, printed_from')
+let query = supabase
+    .from('submissions')
+    .select(`
+        created_at,
+        printed_date,
+        status,
+        printed_from,
+        ic_front_path,
+        ic_back_path,
+        bank_slip_path
+    `)
 
 
         if (printSource !== "all") {
@@ -453,51 +481,162 @@ function Monitor() {
 
     }
 
-    const loadTotalUploadFiles = async () => {
+const loadTotalUploadFiles = async () => {
 
-        setLoadingUploadFiles(true)
+    setLoadingUploadFiles(true)
 
-        const { data, error } = await supabase
-            .from('submissions')
-            .select(`
+    let query = supabase
+        .from('submissions')
+        .select(`
             ic_front_path,
             ic_back_path,
             bank_slip_path
         `)
 
 
-        if (error) {
-            console.error(error)
-            setLoadingUploadFiles(false)
-            return
-        }
+    const now = new Date()
 
 
-        let totalFiles = 0
+    if (range === "yesterday") {
 
+        const start = new Date()
+        start.setDate(start.getDate() - 1)
+        start.setHours(0, 0, 0, 0)
 
-        data.forEach(item => {
+        const end = new Date(start)
+        end.setDate(end.getDate() + 1)
 
-            if (item.ic_front_path) {
-                totalFiles++
-            }
-
-            if (item.ic_back_path) {
-                totalFiles++
-            }
-
-            if (item.bank_slip_path) {
-                totalFiles++
-            }
-
-        })
-
-
-        setTotalUploadFiles(totalFiles)
-
-        setLoadingUploadFiles(false)
+        query = query
+            .gte(
+                'created_at',
+                start.toISOString()
+            )
+            .lt(
+                'created_at',
+                end.toISOString()
+            )
 
     }
+
+
+    if (range === "today") {
+
+        const start = new Date()
+        start.setHours(0, 0, 0, 0)
+
+        query = query.gte(
+            'created_at',
+            start.toISOString()
+        )
+
+    }
+
+
+    if (range === "7days") {
+
+        const start = new Date()
+        start.setDate(now.getDate() - 7)
+
+        query = query.gte(
+            'created_at',
+            start.toISOString()
+        )
+
+    }
+
+
+    if (range === "30days") {
+
+        const start = new Date()
+        start.setDate(now.getDate() - 30)
+
+        query = query.gte(
+            'created_at',
+            start.toISOString()
+        )
+
+    }
+
+
+    if (range === "month") {
+
+        const start = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            1
+        )
+
+        query = query.gte(
+            'created_at',
+            start.toISOString()
+        )
+
+    }
+
+
+    if (range === "lastMonth") {
+
+        const start = new Date(
+            now.getFullYear(),
+            now.getMonth() - 1,
+            1
+        )
+
+        const end = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            1
+        )
+
+
+        query = query
+            .gte(
+                'created_at',
+                start.toISOString()
+            )
+            .lt(
+                'created_at',
+                end.toISOString()
+            )
+
+    }
+
+
+    const { data, error } = await query
+
+
+    if (error) {
+        console.error(error)
+        setLoadingUploadFiles(false)
+        return
+    }
+
+
+    let totalFiles = 0
+
+
+    data.forEach(item => {
+
+        if (item.ic_front_path) {
+            totalFiles++
+        }
+
+        if (item.ic_back_path) {
+            totalFiles++
+        }
+
+        if (item.bank_slip_path) {
+            totalFiles++
+        }
+
+    })
+
+
+    setTotalUploadFiles(totalFiles)
+
+    setLoadingUploadFiles(false)
+
+}
 
     const loadData = async () => {
 
@@ -671,6 +810,10 @@ function Monitor() {
                         Today
                     </option>
 
+                    <option value="yesterday">
+                        Yesterday
+                    </option>
+
                     <option value="7days">
                         Last 7 Days
                     </option>
@@ -767,7 +910,7 @@ function Monitor() {
             <div className="monitor-card chart-card">
 
                 <h2>
-                    Upload vs Printed
+                    Total Uploads vs Total Upload Files, Total Printed
                 </h2>
 
 
