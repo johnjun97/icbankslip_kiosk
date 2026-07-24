@@ -54,21 +54,20 @@ function App() {
     bankSlip: null
   })
 
-  const handleFileChange = (e, fileName) => {
-    const file = e.target.files[0]
+const handleFileChange = (e, fileName) => {
 
-    if (!file) return
+  const file = e.target.files[0]
 
-    if (file) {
-      setFiles({
-        ...files,
-        [fileName]: {
-          file: file,
-          preview: URL.createObjectURL(file)
-        }
-      })
+  if (!file) return
+
+  setFiles(prev => ({
+    ...prev,
+    [fileName]: {
+      file: file,
+      preview: URL.createObjectURL(file)
     }
-  }
+  }))
+}
 
   const canSubmit = () => {
     return (
@@ -92,28 +91,33 @@ function App() {
     debugLog("Upload response:", data, error)
 
     if (error) {
-      debugError('Upload error:', error)
+      debugError("Upload error:", error)
       return null
     }
 
     return data.path
   }
 
-  const removeFile = (fileName) => {
-    setFiles({
-      ...files,
-      [fileName]: null
-    })
+const removeFile = (fileName) => {
+
+  if (files[fileName]?.preview) {
+    URL.revokeObjectURL(files[fileName].preview)
   }
+
+  setFiles(prev => ({
+    ...prev,
+    [fileName]: null
+  }))
+}
 
   const handleSubmit = async (e) => {
 
     e.preventDefault()
 
-if (import.meta.env.VITE_DEBUG === "true") {
-    const { data } = await supabase.auth.getSession()
-    debugLog("Current session:", data.session)
-}
+    if (import.meta.env.VITE_DEBUG === "true") {
+      const { data } = await supabase.auth.getSession()
+      debugLog("User logged in:", data.session?.user?.email)
+    }
 
 
     setLoading(true)
@@ -172,16 +176,9 @@ if (import.meta.env.VITE_DEBUG === "true") {
         uploadResult[item.key] = path
       }
 
-      // debug code
-      // const { data: storageCheck, error: storageError } = await supabase.storage
-      //   .from('uploads')
-      //   .list('ic-front')
-
-      // console.log("Upload repo storage check:", storageCheck, storageError)
-
       const qrValue = `NIR-${Date.now()}`
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('submissions')
         .insert({
           ic_front_path: uploadResult.icFront || null,
@@ -190,7 +187,6 @@ if (import.meta.env.VITE_DEBUG === "true") {
           qrcode: qrValue,
           status: "Pending"
         })
-        .single()
 
       if (error) {
         throw error
@@ -200,8 +196,7 @@ if (import.meta.env.VITE_DEBUG === "true") {
       setQrCode(qrValue)
 
     } catch (error) {
-      debugError(error)
-
+      debugError("Submit error:", error)
     } finally {
       setLoading(false)
     }
@@ -230,6 +225,12 @@ if (import.meta.env.VITE_DEBUG === "true") {
           <button
             onClick={() => {
               setQrCode(null)
+              Object.values(files).forEach(item => {
+                if (item?.preview) {
+                  URL.revokeObjectURL(item.preview)
+                }
+              })
+
               setFiles({
                 icFront: null,
                 icBack: null,

@@ -11,6 +11,7 @@ import {
     CartesianGrid,
     Legend
 } from 'recharts'
+import { debugLog, debugError } from './lib/debug'
 
 function Monitor() {
 
